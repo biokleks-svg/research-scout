@@ -192,7 +192,7 @@ export async function enrichWithSemanticScholar(arxivId: string): Promise<S2Pape
       retries: 2,
       minTimeout: SEMANTIC_SCHOLAR_RATE_LIMIT_MS,
       onFailedAttempt: (err) => {
-        logger.warn({ err: err.message, arxivId }, 'S2 enrichment failed, retrying');
+        logger.warn({ err: err.error.message, arxivId }, 'S2 enrichment failed, retrying');
       },
     },
   );
