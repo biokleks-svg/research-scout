@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import pRetry from 'p-retry';
+import { z } from 'zod';
 import { db } from '@/server/db';
 import { contentItems, processingRegistry } from '@/server/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -170,11 +171,13 @@ export async function harvestArxiv(maxResults = 50): Promise<number> {
 
 // ─── Semantic Scholar enrichment ───────────────────────────────────────────
 
-interface S2Paper {
-  paperId: string;
-  citationCount: number;
-  influentialCitationCount: number;
-}
+const S2PaperSchema = z.object({
+  paperId: z.string(),
+  citationCount: z.number().int().nonnegative(),
+  influentialCitationCount: z.number().int().nonnegative(),
+});
+
+type S2Paper = z.infer<typeof S2PaperSchema>;
 
 export async function enrichWithSemanticScholar(arxivId: string): Promise<S2Paper | null> {
   const apiKey = process.env.SEMANTIC_SCHOLAR_API_KEY;
@@ -186,7 +189,8 @@ export async function enrichWithSemanticScholar(arxivId: string): Promise<S2Pape
       const res = await fetch(url, { headers });
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`Semantic Scholar returned ${res.status}`);
-      return res.json() as Promise<S2Paper>;
+      const data = await res.json();
+      return S2PaperSchema.parse(data);
     },
     {
       retries: 2,
