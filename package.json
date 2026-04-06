@@ -3,7 +3,6 @@
   "packageManager": "pnpm@9.0.0",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "directories": {
     "doc": "docs"
   },
@@ -19,6 +18,8 @@
     "db:studio": "drizzle-kit studio",
     "worker:harvest": "tsx src/workers/harvest.ts",
     "worker:process": "tsx src/workers/process.ts",
+    "worker:intelligence": "tsx src/workers/intelligence.ts",
+    "worker:critic": "tsx src/workers/critic.ts",
     "scheduler": "tsx src/scheduler.ts"
   },
   "repository": {
