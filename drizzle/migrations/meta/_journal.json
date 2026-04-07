@@ -15,6 +15,13 @@
       "when": 1775585467172,
       "tag": "0001_normal_living_mummy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775601146851,
+      "tag": "0002_groovy_goblin_queen",
+      "breakpoints": true
     }
   ]
 }
