@@ -8,6 +8,13 @@
       "when": 1775500991378,
       "tag": "0000_fantastic_sleepwalker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775585467172,
+      "tag": "0001_normal_living_mummy",
+      "breakpoints": true
     }
   ]
 }

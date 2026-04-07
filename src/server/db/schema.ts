@@ -38,6 +38,7 @@ export const contentItems = pgTable('content_items', {
   embedding:        vector('embedding', { dimensions: 768 }),
 
   processingStatus: text('processing_status').default('harvested'),
+  podcastStatus:    text('podcast_status').default('not_requested'),
 
   citationCount:    integer('citation_count').default(0),
   engagementScore:  real('engagement_score').default(0),
@@ -82,6 +83,7 @@ export const users = pgTable('users', {
   structuredInterests: jsonb('structured_interests').$type<InterestTag[]>(),
   interestEmbedding:   vector('interest_embedding', { dimensions: 768 }),
   settings:            jsonb('settings').$type<UserSettings>(),
+  passwordHash:        text('password_hash'),
   createdAt:           timestamp('created_at').defaultNow(),
 });
 
@@ -133,4 +135,12 @@ export const systemSettings = pgTable('system_settings', {
   value:     jsonb('value').notNull(),
   updatedAt: timestamp('updated_at').defaultNow(),
   updatedBy: uuid('updated_by').references(() => users.id),
+});
+
+// ─── sessions ──────────────────────────────────────────────────────────────
+
+export const sessions = pgTable('sessions', {
+  id:        text('id').primaryKey(),
+  userId:    uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
 });
