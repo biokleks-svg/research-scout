@@ -43,6 +43,8 @@ export const feedRouter = router({
           globalQuality:    true,
           infographicUrl:   true,
           summary:          true,
+          podcastUrl:       true,
+          podcastStatus:    true,
         },
       });
 
