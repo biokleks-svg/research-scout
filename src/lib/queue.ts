@@ -48,3 +48,13 @@ export interface ProcessJobData {
 export interface PodcastJobData {
   contentItemId: string;
 }
+
+export interface IntelligenceJobData {
+  jobType: 'detect-trends' | 'narrate-trends' | 'build-recommendations' | 'compose-digest';
+  params?: Record<string, unknown>;
+}
+
+export interface CriticJobData {
+  contentItemId: string;
+  stages: Array<'score' | 'rank' | 'justify'>;
+}
