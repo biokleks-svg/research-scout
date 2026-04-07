@@ -34,18 +34,27 @@ export async function registerAction(
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { email, password, name } = parsed.data;
-  const passwordHash = await hash(password, { memoryCost: 19456, timeCost: 2, outputLen: 32, parallelism: 1 });
 
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-  if (existing) return { error: 'Email already registered' };
+  let shouldRedirect = false;
+  try {
+    const passwordHash = await hash(password, { memoryCost: 19456, timeCost: 2, outputLen: 32, parallelism: 1 });
 
-  const [newUser] = await db.insert(users).values({ email, passwordHash, name: name ?? null }).returning({ id: users.id });
-  if (!newUser) return { error: 'Registration failed' };
+    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (existing) return { error: 'Email already registered' };
 
-  const session       = await lucia.createSession(newUser.id, {});
-  const sessionCookie = lucia.createSessionCookie(session.id);
-  (await cookies()).set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-  redirect('/');
+    const [newUser] = await db.insert(users).values({ email, passwordHash, name: name ?? null }).returning({ id: users.id });
+    if (!newUser) return { error: 'Registration failed' };
+
+    const session       = await lucia.createSession(newUser.id, {});
+    const sessionCookie = lucia.createSessionCookie(session.id);
+    (await cookies()).set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+    shouldRedirect = true;
+  } catch (err) {
+    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
+    return { error: 'Something went wrong. Please try again.' };
+  }
+  if (shouldRedirect) redirect('/');
+  return null;
 }
 
 export async function loginAction(
@@ -59,30 +68,43 @@ export async function loginAction(
   if (!parsed.success) return { error: 'Invalid input' };
 
   const { email, password } = parsed.data;
-  const [existingUser] = await db
-    .select({ id: users.id, passwordHash: users.passwordHash })
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
 
-  if (!existingUser?.passwordHash) return { error: 'Invalid email or password' };
+  let shouldRedirect = false;
+  try {
+    const [existingUser] = await db
+      .select({ id: users.id, passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
 
-  const valid = await verify(existingUser.passwordHash, password);
-  if (!valid) return { error: 'Invalid email or password' };
+    if (!existingUser?.passwordHash) return { error: 'Invalid email or password' };
 
-  const session       = await lucia.createSession(existingUser.id, {});
-  const sessionCookie = lucia.createSessionCookie(session.id);
-  (await cookies()).set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-  redirect('/');
+    const valid = await verify(existingUser.passwordHash, password);
+    if (!valid) return { error: 'Invalid email or password' };
+
+    const session       = await lucia.createSession(existingUser.id, {});
+    const sessionCookie = lucia.createSessionCookie(session.id);
+    (await cookies()).set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+    shouldRedirect = true;
+  } catch (err) {
+    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err;
+    return { error: 'Something went wrong. Please try again.' };
+  }
+  if (shouldRedirect) redirect('/');
+  return null;
 }
 
 export async function logoutAction() {
   const cookieStore = await cookies();
   const sessionId   = cookieStore.get('auth_session')?.value;
   if (sessionId) {
-    await lucia.invalidateSession(sessionId);
-    const blankCookie = lucia.createBlankSessionCookie();
-    cookieStore.set(blankCookie.name, blankCookie.value, blankCookie.attributes);
+    try {
+      await lucia.invalidateSession(sessionId);
+    } catch (err) {
+      console.error('Failed to invalidate session:', err);
+    }
   }
+  const blankCookie = lucia.createBlankSessionCookie();
+  cookieStore.set(blankCookie.name, blankCookie.value, blankCookie.attributes);
   redirect('/login');
 }
