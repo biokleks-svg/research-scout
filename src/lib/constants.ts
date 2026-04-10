@@ -29,3 +29,24 @@ export const SEMANTIC_SCHOLAR_RATE_LIMIT_MS = 1000;
 // Pagination
 export const DEFAULT_FEED_LIMIT = 20;
 export const MAX_FEED_LIMIT     = 100;
+
+// Critic layer
+export const TREND_INHERITANCE_FACTOR = 0.3;
+
+export const CRITIC_DIMENSION_WEIGHTS = {
+  aiNovelty:           0.20,
+  usefulness:          0.15,
+  methodologicalRigor: 0.10,
+  reproducibility:     0.10,
+  webBuzz:             0.15,
+  popularity:          0.15,
+  industryRelevance:   0.10,
+  longevityPotential:  0.05,
+} as const;
+
+// Trend detection
+export const TREND_Z_SCORE_EMERGING = 2.0;
+export const TREND_Z_SCORE_RISING   = 3.5;
+export const TREND_Z_SCORE_FADING   = 1.5;
+export const TREND_FADING_DAYS      = 14;
+export const TREND_LOOKBACK_WEEKS   = 12;
