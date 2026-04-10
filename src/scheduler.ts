@@ -51,4 +51,16 @@ cron.schedule('*/30 * * * *', async () => {
   }
 });
 
-logger.info('Scheduler started. Paper harvest: every 2h. Classify sweep: every 15min. Critic sweep: every 30min.');
+// Daily at 02:00 UTC: detect trends + propagate bonuses
+cron.schedule('0 2 * * *', async () => {
+  logger.info('Scheduling trend detection job');
+  await intelligenceQueue.add('detect-trends', { jobType: 'detect-trends' });
+});
+
+// Daily at 03:00 UTC: generate narratives for active trends
+cron.schedule('0 3 * * *', async () => {
+  logger.info('Scheduling trend narration job');
+  await intelligenceQueue.add('narrate-trends', { jobType: 'narrate-trends' });
+});
+
+logger.info('Scheduler started. Paper harvest: every 2h. Classify: every 15min. Critic: every 30min. Trend detection: daily 02:00 UTC. Narration: daily 03:00 UTC.');
