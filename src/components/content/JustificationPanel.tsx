@@ -34,9 +34,9 @@ export function JustificationPanel({ justification }: Props) {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-1 text-muted-foreground font-medium">Rank</th>
-                    <th className="text-left py-1 text-muted-foreground font-medium">Paper</th>
+                    <th className="text-left py-1 text-muted-foreground font-medium">Title</th>
                     <th className="text-right py-1 text-muted-foreground font-medium">Composite</th>
+                    <th className="text-right py-1 text-muted-foreground font-medium">Rank</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -47,9 +47,9 @@ export function JustificationPanel({ justification }: Props) {
                       : '—';
                     return (
                     <tr key={peer.rank} className="border-b last:border-0">
-                      <td className="py-1.5 pr-3 text-muted-foreground">#{peer.rank}</td>
-                      <td className="py-1.5 text-muted-foreground">{peer.title}</td>
+                      <td className="py-1.5 pr-3 text-muted-foreground">{peer.title}</td>
                       <td className="py-1.5 text-right text-muted-foreground">{composite}</td>
+                      <td className="py-1.5 text-right text-muted-foreground">#{peer.rank}</td>
                     </tr>
                     );
                   })}
