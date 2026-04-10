@@ -21,7 +21,7 @@ export function CriticRadarChart({ scores }: Props) {
     { dimension: 'Rigor',           value: scores.methodologicalRigor.score, reasoning: scores.methodologicalRigor.reasoning },
     { dimension: 'Reproducibility', value: scores.reproducibility.score,     reasoning: scores.reproducibility.reasoning },
     { dimension: 'Buzz',            value: scores.webBuzz.score,             reasoning: scores.webBuzz.reasoning },
-    { dimension: 'Popularity',      value: scores.popularity.total,          reasoning: '' },
+    { dimension: 'Popularity',      value: scores.popularity.total,          reasoning: `Base: ${scores.popularity.base}, Trend Bonus: +${scores.popularity.trendBonus}` },
     { dimension: 'Longevity',       value: scores.longevityPotential.score,  reasoning: scores.longevityPotential.reasoning },
     { dimension: 'Industry',        value: scores.industryRelevance.score,   reasoning: scores.industryRelevance.reasoning },
   ];
