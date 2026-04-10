@@ -12,16 +12,16 @@ const logger = pino({ name: 'conference-harvester' });
 
 // ─── Venue configuration ────────────────────────────────────────────────────
 
-/** DBLP venue keys for search queries */
+/** DBLP conf paths for toc: queries (e.g. toc:db/conf/nips/) */
 export const VENUE_DBLP_KEYS: Record<string, string> = {
-  NeurIPS: 'NeurIPS',
-  ICML:    'ICML',
-  ICLR:    'ICLR',
-  ACL:     'ACL',
-  EMNLP:   'EMNLP',
-  CVPR:    'CVPR',
-  AAAI:    'AAAI',
-  MLSys:   'MLSys',
+  NeurIPS: 'conf/nips',
+  ICML:    'conf/icml',
+  ICLR:    'conf/iclr',
+  ACL:     'conf/acl',
+  EMNLP:   'conf/emnlp',
+  CVPR:    'conf/cvpr',
+  AAAI:    'conf/aaai',
+  MLSys:   'conf/mlsys',
 };
 
 /** Returns the proceedings page URL for a venue and year */
@@ -156,7 +156,7 @@ async function fetchDblpVenue(venueKey: string, maxResults = 250): Promise<RawDb
   return pRetry(
     async () => {
       const params = new URLSearchParams({
-        q:      `venue:${venueKey}`,
+        q:      `toc:db/${venueKey}/`,
         format: 'json',
         h:      String(maxResults),
       });
@@ -223,6 +223,7 @@ export async function harvestConferences(maxPerVenue = 250): Promise<number> {
     try {
       logger.info({ venue, dblpKey }, 'Fetching DBLP proceedings');
       const hits = await fetchDblpVenue(dblpKey, maxPerVenue);
+      await new Promise((r) => setTimeout(r, DBLP_RATE_LIMIT_MS)); // rate-limit after fetch
       logger.info({ venue, count: hits.length }, 'DBLP hits received');
 
       for (const hit of hits) {
@@ -235,7 +236,6 @@ export async function harvestConferences(maxPerVenue = 250): Promise<number> {
           logger.error({ venue, title: hit.info?.title, err }, 'Failed to persist conference paper');
         }
       }
-      await new Promise((r) => setTimeout(r, DBLP_RATE_LIMIT_MS));
     } catch (err) {
       logger.error({ venue, err }, 'DBLP venue fetch failed, continuing');
     }
@@ -253,8 +253,13 @@ export async function harvestConferences(maxPerVenue = 250): Promise<number> {
  */
 
 async function scrapeNeurIPS(page: Page, year: number): Promise<ConferencePageEntry[]> {
+  const url = getConferenceUrl('NeurIPS', year);
+  if (!url) {
+    logger.warn({ venue: 'NeurIPS', year }, 'No proceedings URL for venue, skipping enrichment');
+    return [];
+  }
   try {
-    await page.goto(getConferenceUrl('NeurIPS', year), { timeout: 15000 });
+    await page.goto(url, { timeout: 15000 });
     const entries = await page.$$eval('li.conference, .paper-title-cell, li', (els) =>
       els.map((el) => ({
         title: (el.querySelector('a') ?? el).textContent?.trim() ?? '',
@@ -270,8 +275,13 @@ async function scrapeNeurIPS(page: Page, year: number): Promise<ConferencePageEn
 }
 
 async function scrapeACLAnthology(page: Page, venue: string, year: number): Promise<ConferencePageEntry[]> {
+  const url = getConferenceUrl(venue, year);
+  if (!url) {
+    logger.warn({ venue, year }, 'No proceedings URL for venue, skipping enrichment');
+    return [];
+  }
   try {
-    await page.goto(getConferenceUrl(venue, year), { timeout: 15000 });
+    await page.goto(url, { timeout: 15000 });
     const entries = await page.$$eval('.paper-title, strong.align-middle', (els) =>
       els.map((el) => {
         const row = el.closest('p, li, .row');
@@ -290,8 +300,13 @@ async function scrapeACLAnthology(page: Page, venue: string, year: number): Prom
 }
 
 async function scrapeOpenReview(page: Page, venue: string, year: number): Promise<ConferencePageEntry[]> {
+  const url = getConferenceUrl(venue, year);
+  if (!url) {
+    logger.warn({ venue, year }, 'No proceedings URL for venue, skipping enrichment');
+    return [];
+  }
   try {
-    await page.goto(getConferenceUrl(venue, year), { timeout: 15000 });
+    await page.goto(url, { timeout: 15000 });
     const entries = await page.$$eval('.note-content-title, .paper-title', (els) =>
       els.map((el) => {
         const card = el.closest('.note, .paper-card');
@@ -310,8 +325,13 @@ async function scrapeOpenReview(page: Page, venue: string, year: number): Promis
 }
 
 async function scrapeCVPR(page: Page, year: number): Promise<ConferencePageEntry[]> {
+  const url = getConferenceUrl('CVPR', year);
+  if (!url) {
+    logger.warn({ venue: 'CVPR', year }, 'No proceedings URL for venue, skipping enrichment');
+    return [];
+  }
   try {
-    await page.goto(getConferenceUrl('CVPR', year), { timeout: 15000 });
+    await page.goto(url, { timeout: 15000 });
     const entries = await page.$$eval('dt.ptitle, .ptitle', (els) =>
       els.map((el) => ({
         title: el.querySelector('a')?.textContent?.trim() ?? el.textContent?.trim() ?? '',
@@ -327,8 +347,13 @@ async function scrapeCVPR(page: Page, year: number): Promise<ConferencePageEntry
 }
 
 async function scrapeGenericProceedings(page: Page, venue: string, year: number): Promise<ConferencePageEntry[]> {
+  const url = getConferenceUrl(venue, year);
+  if (!url) {
+    logger.warn({ venue, year }, 'No proceedings URL for venue, skipping enrichment');
+    return [];
+  }
   try {
-    await page.goto(getConferenceUrl(venue, year), { timeout: 15000 });
+    await page.goto(url, { timeout: 15000 });
     const entries = await page.$$eval('h3 a, h4 a, .paper a, .title a, li a', (els) =>
       els
         .filter((el) => (el.textContent?.trim().length ?? 0) > 15)
@@ -360,6 +385,7 @@ export async function enrichConferencePapers(): Promise<number> {
     where: and(
       eq(contentItems.sourceType, 'conference'),
       isNotNull(contentItems.conferenceMetadata),
+      // raw SQL: Drizzle does not expose JSONB path operators natively (not a pgvector exception)
       sql`${contentItems.conferenceMetadata}->>'enrichedAt' IS NULL`,
       gt(contentItems.publishedAt, windowStart),
     ),
