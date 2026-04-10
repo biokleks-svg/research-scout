@@ -3,6 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@/agents/intelligence/trend-detector',   () => ({ detectTrends:            vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/agents/intelligence/trend-narrator',   () => ({ narrateActiveTrends:      vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/agents/intelligence/trend-propagator', () => ({ propagateAllActiveTrends: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/agents/intelligence/rec-engine',       () => ({ buildRecommendations:     vi.fn().mockResolvedValue([]) }));
+vi.mock('@/agents/intelligence/digest-composer',  () => ({ composeDigestForAllUsers: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/server/db/schema', () => ({ users: {} }));
+vi.mock('drizzle-orm',        () => ({ isNotNull: vi.fn() }));
+vi.mock('@/server/db',        () => ({ db: { query: { users: { findMany: vi.fn().mockResolvedValue([]) } } } }));
 vi.mock('@/lib/queue',     () => ({ getRedisConnection: vi.fn(() => ({})) }));
 vi.mock('@/lib/constants', () => ({ QUEUE_INTELLIGENCE: 'intelligence' }));
 vi.mock('bullmq', () => {
