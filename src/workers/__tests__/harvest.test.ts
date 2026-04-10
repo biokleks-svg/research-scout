@@ -8,12 +8,17 @@ vi.mock('@/agents/harvesters/blog',        () => ({ harvestAllBlogs:    vi.fn().
 vi.mock('@/agents/harvesters/huggingface', () => ({ harvestHuggingFace: vi.fn().mockResolvedValue(2) }));
 vi.mock('@/agents/harvesters/social',      () => ({ harvestSocial:      vi.fn().mockResolvedValue(4) }));
 vi.mock('@/agents/harvesters/video',       () => ({ harvestYouTube:     vi.fn().mockResolvedValue(1) }));
+vi.mock('@/agents/harvesters/conference', () => ({
+  harvestConferences:     vi.fn().mockResolvedValue(12),
+  enrichConferencePapers: vi.fn().mockResolvedValue(8),
+}));
 vi.mock('bullmq', () => ({
   Worker: vi.fn().mockImplementation(function () { this.on = vi.fn(); }),
 }));
 vi.mock('@/lib/queue', () => ({ getRedisConnection: vi.fn().mockReturnValue({}) }));
 
 import { harvestJob } from '../harvest';
+import { harvestConferences, enrichConferencePapers } from '@/agents/harvesters/conference';
 import { harvestAllBlogs } from '@/agents/harvesters/blog';
 import { harvestHuggingFace } from '@/agents/harvesters/huggingface';
 import { harvestSocial } from '@/agents/harvesters/social';
@@ -35,5 +40,10 @@ describe('harvestJob', () => {
   it('calls harvestYouTube for video type', async () => {
     await harvestJob('video');
     expect(harvestYouTube).toHaveBeenCalled();
+  });
+  it('calls harvestConferences and enrichConferencePapers for conference type', async () => {
+    await harvestJob('conference');
+    expect(harvestConferences).toHaveBeenCalled();
+    expect(enrichConferencePapers).toHaveBeenCalled();
   });
 });

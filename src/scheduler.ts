@@ -85,6 +85,12 @@ cron.schedule('0 */6 * * *', async () => {
   await harvestQueue.add('harvest-video', { agentType: 'video' });
 });
 
+// Weekly: Monday 06:00 UTC — conference proceedings harvest + Playwright enrichment
+cron.schedule('0 6 * * 1', async () => {
+  logger.info('Queuing weekly conference harvest');
+  await harvestQueue.add('harvest-conference', { agentType: 'conference' });
+});
+
 // Daily at 02:00 UTC: detect trends + propagate bonuses
 cron.schedule('0 2 * * *', async () => {
   logger.info('Scheduling trend detection job');
@@ -97,4 +103,4 @@ cron.schedule('0 3 * * *', async () => {
   await intelligenceQueue.add('narrate-trends', { jobType: 'narrate-trends' });
 });
 
-logger.info('Scheduler started. Paper: 2h. Classify: 15min. Critic: 30min. Blog/HF: 6h. Social: 2h. Video: 6h. Trend detection: 02:00 UTC. Narration: 03:00 UTC.');
+logger.info('Scheduler started. Paper: 2h. Classify: 15min. Critic: 30min. Blog/HF: 6h. Social: 2h. Video: 6h. Conference: Mon 06:00 UTC. Trend detection: 02:00 UTC. Narration: 03:00 UTC.');

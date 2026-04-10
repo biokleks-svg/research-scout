@@ -6,6 +6,7 @@ import { harvestAllBlogs }    from '@/agents/harvesters/blog';
 import { harvestHuggingFace } from '@/agents/harvesters/huggingface';
 import { harvestSocial }      from '@/agents/harvesters/social';
 import { harvestYouTube }     from '@/agents/harvesters/video';
+import { harvestConferences, enrichConferencePapers } from '@/agents/harvesters/conference';
 import type { HarvestJobData } from '@/lib/queue';
 import { pino } from 'pino';
 
@@ -33,6 +34,11 @@ export async function harvestJob(agentType: HarvestJobData['agentType']): Promis
     }
     case 'video': {
       const count = await harvestYouTube(10);
+      return { harvested: count };
+    }
+    case 'conference': {
+      const count = await harvestConferences(250);
+      await enrichConferencePapers();
       return { harvested: count };
     }
     default:
