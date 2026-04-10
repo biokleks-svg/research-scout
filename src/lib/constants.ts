@@ -50,3 +50,40 @@ export const TREND_Z_SCORE_RISING   = 3.5;
 export const TREND_Z_SCORE_FADING   = 1.5;
 export const TREND_FADING_DAYS      = 14;
 export const TREND_LOOKBACK_WEEKS   = 12;
+
+// New harvesters
+export const HF_API_BASE          = 'https://huggingface.co/api';
+export const YOUTUBE_API_BASE     = 'https://www.googleapis.com/youtube/v3';
+export const BLUESKY_API_BASE     = 'https://public.api.bsky.app';
+export const HN_API_BASE          = 'https://hn.algolia.com/api/v1';
+export const HF_RATE_LIMIT_MS     = 1000;
+export const SOCIAL_RATE_LIMIT_MS = 500;
+export const YOUTUBE_RATE_LIMIT_MS = 100;
+
+export const BLOG_FEED_URLS: string[] = [
+  'https://openai.com/blog/rss.xml',
+  'https://www.anthropic.com/blog/rss.xml',
+  'https://deepmind.google/blog/rss/',
+  'https://ai.meta.com/blog/rss/',
+  'https://mistral.ai/news/rss.xml',
+  'https://huggingface.co/blog/feed.xml',
+  'https://www.deeplearning.ai/the-batch/rss/',
+  'https://sebastianraschka.com/rss_feed.xml',
+];
+
+export const YOUTUBE_AI_CHANNELS: string[] = [
+  'UCbmNph6atAoGfqLoCL_duAg', // Yannic Kilcher
+  'UCbfYPyITQ-7l4upoX8nvctg', // Two Minute Papers
+  'UCnUYZLuoy1rq1aVMwx4aTzw', // AI Explained
+  'UCYO_jab_esuFRV4b17AJtAg', // 3Blue1Brown
+];
+
+// Recommendation engine
+export const REC_ENGINE_WINDOW_DAYS     = 21;
+export const REC_ENGINE_CANDIDATE_LIMIT = 200;
+export const REC_ENGINE_OUTPUT_LIMIT    = 20;
+
+export const REC_WEIGHT_RELEVANCE = 0.40;
+export const REC_WEIGHT_QUALITY   = 0.30;
+export const REC_WEIGHT_FRESHNESS = 0.20;
+export const REC_WEIGHT_TREND     = 0.10;
