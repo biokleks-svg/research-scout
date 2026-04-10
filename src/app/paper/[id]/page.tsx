@@ -4,6 +4,8 @@ import { contentItems } from '@/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { Badge } from '@/components/ui/badge';
 import { PodcastButton } from '@/components/content/PodcastButton';
+import { CriticRadarChart } from '@/components/content/CriticRadarChart';
+import { JustificationPanel } from '@/components/content/JustificationPanel';
 import type { PodcastStatusValue } from '@/agents/processors/podcast';
 
 interface Props {
@@ -105,6 +107,17 @@ export default async function PaperPage({ params }: Props) {
 
       {!item.summary && !item.rawText && (
         <p className="text-sm text-muted-foreground italic">Content is being processed…</p>
+      )}
+
+      {item.criticScores && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Critic Scores</h2>
+          <CriticRadarChart scores={item.criticScores} />
+        </div>
+      )}
+
+      {item.justification && (
+        <JustificationPanel justification={item.justification} />
       )}
     </main>
   );
