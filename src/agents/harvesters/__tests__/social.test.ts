@@ -44,8 +44,8 @@ describe('normalizeHNItem', () => {
     num_comments: 45,
   };
 
-  it('sets sourceType to tweet', () => {
-    expect(normalizeHNItem(item).sourceType).toBe('tweet');
+  it('sets sourceType to social', () => {
+    expect(normalizeHNItem(item).sourceType).toBe('social');
   });
 
   it('uses objectID as sourceId', () => {

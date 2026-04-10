@@ -55,7 +55,7 @@ export function normalizeHNItem(item: RawHNItem): {
   title: string; authors: string[]; publishedAt: Date; rawText: string; contentHash: string;
 } {
   return {
-    sourceType:  'tweet',
+    sourceType:  'social',
     sourceId:    `hn:${item.objectID}`,
     sourceUrl:   item.url ?? `https://news.ycombinator.com/item?id=${item.objectID}`,
     title:       item.title,

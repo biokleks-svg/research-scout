@@ -84,8 +84,27 @@ export async function buildRecommendations(userId: string, limit = REC_ENGINE_OU
     }).then(rows => rows.map(r => ({ ...r, score: (r.globalQuality ?? 0) / 100 })));
   }
 
+  // Validate the embedding before using it in a raw SQL literal (prevents SQL injection)
+  const rawEmbedding = user.interestEmbedding;
+  if (!Array.isArray(rawEmbedding) || rawEmbedding.some(v => typeof v !== 'number' || !isFinite(v))) {
+    logger.warn({ userId }, 'Invalid interest embedding format — returning fallback');
+    return db.query.contentItems.findMany({
+      where: and(
+        gt(contentItems.publishedAt, windowStart),
+        isNotNull(contentItems.criticScores),
+      ),
+      orderBy: (t, { desc }) => [desc(t.globalQuality)],
+      limit,
+      columns: {
+        id: true, title: true, sourceType: true, sourceUrl: true, publishedAt: true,
+        globalQuality: true, summary: true, infographicUrl: true, taxonomy: true,
+        difficultyLevel: true, citationCount: true, podcastUrl: true, podcastStatus: true,
+      },
+    }).then(rows => rows.map(r => ({ ...r, score: (r.globalQuality ?? 0) / 100 })));
+  }
+
   // pgvector ANN: find most similar items to user's interest embedding
-  const embeddingLiteral = `[${(user.interestEmbedding as number[]).join(',')}]`;
+  const embeddingLiteral = `[${(rawEmbedding as number[]).join(',')}]`;
   const rows = await db.execute(sql`
     SELECT
       id, title, source_type AS "sourceType", source_url AS "sourceUrl",

@@ -2,6 +2,7 @@ export type ContentSourceType =
   | 'paper'
   | 'video'
   | 'tweet'
+  | 'social'
   | 'blog'
   | 'conference'
   | 'model';

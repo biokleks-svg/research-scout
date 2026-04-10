@@ -4,11 +4,7 @@ import { QUEUE_INTELLIGENCE } from '@/lib/constants';
 import { detectTrends }            from '@/agents/intelligence/trend-detector';
 import { narrateActiveTrends }      from '@/agents/intelligence/trend-narrator';
 import { propagateAllActiveTrends } from '@/agents/intelligence/trend-propagator';
-import { buildRecommendations }     from '@/agents/intelligence/rec-engine';
 import { composeDigestForAllUsers } from '@/agents/intelligence/digest-composer';
-import { users }                    from '@/server/db/schema';
-import { isNotNull }                from 'drizzle-orm';
-import { db }                       from '@/server/db';
 import type { IntelligenceJobData } from '@/lib/queue';
 import { pino } from 'pino';
 
@@ -25,19 +21,9 @@ export async function intelligenceJob(jobType: IntelligenceJobData['jobType']): 
       await narrateActiveTrends();
       return true;
     case 'build-recommendations': {
-      // Pre-warm recommendations for all users with interest embeddings
-      const usersWithEmbeddings = await db.query.users.findMany({
-        where: isNotNull(users.interestEmbedding),
-        columns: { id: true },
-      });
-      for (const user of usersWithEmbeddings) {
-        try {
-          await buildRecommendations(user.id);
-          logger.info({ userId: user.id }, 'Recommendations built');
-        } catch (err) {
-          logger.error({ userId: user.id, err }, 'Failed to build recommendations');
-        }
-      }
+      // Recommendations are computed on-demand in feed.getPersonalized.
+      // This job slot is reserved for future pre-warming to a cache layer.
+      logger.info('build-recommendations: on-demand mode, no pre-warming needed');
       return true;
     }
     case 'compose-digest':

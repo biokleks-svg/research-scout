@@ -20,12 +20,15 @@ export const feedbackRouter = router({
       value:        z.number().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      await db.insert(feedback).values({
-        userId:       ctx.user.id,
-        contentId:    input.contentId,
-        feedbackType: input.feedbackType,
-        value:        input.value ?? null,
-      });
+      await db
+        .insert(feedback)
+        .values({
+          userId:       ctx.user.id,
+          contentId:    input.contentId,
+          feedbackType: input.feedbackType,
+          value:        input.value ?? null,
+        })
+        .onConflictDoNothing();
       return { ok: true };
     }),
 
