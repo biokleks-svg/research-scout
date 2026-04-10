@@ -78,3 +78,13 @@ export interface RegistryStages {
   criticScored: StageRecord;
   justified:    StageRecord;
 }
+
+export interface ConferenceMetadata {
+  venue:             string;   // 'NeurIPS' | 'ICML' | 'ICLR' | 'ACL' | 'EMNLP' | 'CVPR' | 'AAAI' | 'MLSys'
+  year:              number;
+  sessionTrack?:     string;   // e.g. 'oral' | 'spotlight' | 'poster' | 'workshop'
+  acceptanceStatus?: string;   // e.g. 'accepted' | 'spotlight' | 'oral'
+  recordingUrl?:     string;
+  abstract?:         string;   // full abstract from conference page
+  enrichedAt?:       string;   // ISO timestamp — set when Playwright enrichment completes
+}

@@ -1,7 +1,7 @@
 import {
   pgTable, uuid, text, timestamp, integer, real, jsonb, index, unique, vector,
 } from 'drizzle-orm/pg-core';
-import type { TaxonomyTags, SummarySchema, RegistryStages } from '@/types/content';
+import type { TaxonomyTags, SummarySchema, RegistryStages, ConferenceMetadata } from '@/types/content';
 import type { CriticScores, CohortRank, JustificationDossier } from '@/types/critic';
 import type { TrendSignals } from '@/types/trends';
 import type { InterestTag, UserSettings } from '@/types/user';
@@ -34,6 +34,7 @@ export const contentItems = pgTable('content_items', {
   justification:    jsonb('justification').$type<JustificationDossier>(),
 
   trendIds:         jsonb('trend_ids').$type<string[]>(),
+  conferenceMetadata: jsonb('conference_metadata').$type<ConferenceMetadata>(),
 
   embedding:        vector('embedding', { dimensions: 768 }),
 
