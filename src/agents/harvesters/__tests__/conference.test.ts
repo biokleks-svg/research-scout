@@ -3,6 +3,7 @@ import {
   buildConferenceContentHash,
   normalizeDblpHit,
   matchPaperToPage,
+  getConferenceUrl,
   type RawDblpHit,
   type ConferencePageEntry,
 } from '../conference';
@@ -55,9 +56,9 @@ describe('normalizeDblpHit', () => {
 
   it('sets publishedAt to Jan 1 of conference year', () => {
     const d = normalizeDblpHit(hit, 'NeurIPS').publishedAt;
-    expect(d.getFullYear()).toBe(2017);
-    expect(d.getMonth()).toBe(0);
-    expect(d.getDate()).toBe(1);
+    expect(d.getUTCFullYear()).toBe(2017);
+    expect(d.getUTCMonth()).toBe(0);
+    expect(d.getUTCDate()).toBe(1);
   });
 
   it('maps single author object (not array) correctly', () => {
@@ -101,5 +102,23 @@ describe('matchPaperToPage', () => {
     ];
     const result = matchPaperToPage('Attention Is All You Need', similar);
     expect(result?.sessionTrack).toBe('oral');
+  });
+});
+
+describe('getConferenceUrl', () => {
+  it('includes year in NeurIPS URL', () => {
+    expect(getConferenceUrl('NeurIPS', 2024)).toContain('2024');
+  });
+
+  it('includes year in ICLR URL', () => {
+    expect(getConferenceUrl('ICLR', 2024)).toContain('2024');
+  });
+
+  it('includes year in CVPR URL', () => {
+    expect(getConferenceUrl('CVPR', 2024)).toContain('2024');
+  });
+
+  it('returns empty string for unknown venue', () => {
+    expect(getConferenceUrl('UNKNOWN', 2024)).toBe('');
   });
 });

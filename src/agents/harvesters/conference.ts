@@ -27,12 +27,12 @@ export const VENUE_DBLP_KEYS: Record<string, string> = {
 export function getConferenceUrl(venue: string, year: number): string {
   const urls: Record<string, string> = {
     NeurIPS: `https://proceedings.neurips.cc/paper_files/paper/${year}`,
-    ICML:    `https://proceedings.mlr.press/`,
+    ICML:    `https://proceedings.mlr.press/`, // TODO(task-5): volume number varies by year; use index page and scrape for current volume
     ICLR:    `https://openreview.net/group?id=ICLR.cc/${year}/Conference`,
     ACL:     `https://aclanthology.org/events/acl-${year}/`,
     EMNLP:   `https://aclanthology.org/events/emnlp-${year}/`,
     CVPR:    `https://openaccess.thecvf.com/CVPR${year}`,
-    AAAI:    `https://ojs.aaai.org/index.php/AAAI/issue/archive`,
+    AAAI:    `https://ojs.aaai.org/index.php/AAAI/issue/archive`, // TODO(task-5): archive page; year filtering needed during scrape
     MLSys:   `https://proceedings.mlsys.org/paper_files/paper/${year}`,
   };
   return urls[venue] ?? '';
@@ -104,7 +104,7 @@ export function normalizeDblpHit(
     sourceUrl:   info.url,
     title,
     authors,
-    publishedAt: new Date(year, 0, 1),
+    publishedAt: new Date(Date.UTC(year, 0, 1)),
     rawText:     `${title}. ${authors.join(', ')}. ${venue} ${year}.`,
     contentHash: buildConferenceContentHash(venue, title),
   };
