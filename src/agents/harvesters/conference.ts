@@ -3,7 +3,7 @@ import pRetry from 'p-retry';
 import { chromium, type Page } from 'playwright';
 import { db } from '@/server/db';
 import { contentItems, processingRegistry } from '@/server/db/schema';
-import { and, eq, isNull, gt } from 'drizzle-orm';
+import { and, eq, isNotNull, gt, sql } from 'drizzle-orm';
 import { DBLP_API_BASE, DBLP_RATE_LIMIT_MS, CONFERENCE_ENRICH_WINDOW_DAYS } from '@/lib/constants';
 import type { ContentSourceType, RegistryStages, ConferenceMetadata } from '@/types/content';
 import { pino } from 'pino';
@@ -173,6 +173,7 @@ async function fetchDblpVenue(venueKey: string, maxResults = 250): Promise<RawDb
 
 async function persistConferencePaper(
   normalized: ReturnType<typeof normalizeDblpHit>,
+  venue: string,
 ): Promise<boolean> {
   const existing = await db.query.processingRegistry.findFirst({
     where: and(
@@ -184,7 +185,11 @@ async function persistConferencePaper(
 
   const [inserted] = await db
     .insert(contentItems)
-    .values({ ...normalized, processingStatus: 'harvested' })
+    .values({
+      ...normalized,
+      processingStatus: 'harvested',
+      conferenceMetadata: { venue, year: normalized.publishedAt.getUTCFullYear() },
+    })
     .onConflictDoNothing()
     .returning();
   if (!inserted) return false;
@@ -224,7 +229,7 @@ export async function harvestConferences(maxPerVenue = 250): Promise<number> {
         try {
           const normalized = normalizeDblpHit(hit, venue);
           if (!normalized.title) continue;
-          const inserted = await persistConferencePaper(normalized);
+          const inserted = await persistConferencePaper(normalized, venue);
           if (inserted) total++;
         } catch (err) {
           logger.error({ venue, title: hit.info?.title, err }, 'Failed to persist conference paper');
@@ -354,7 +359,8 @@ export async function enrichConferencePapers(): Promise<number> {
   const unenriched = await db.query.contentItems.findMany({
     where: and(
       eq(contentItems.sourceType, 'conference'),
-      isNull(contentItems.conferenceMetadata),
+      isNotNull(contentItems.conferenceMetadata),
+      sql`${contentItems.conferenceMetadata}->>'enrichedAt' IS NULL`,
       gt(contentItems.publishedAt, windowStart),
     ),
     columns: { id: true, title: true, publishedAt: true, conferenceMetadata: true },
@@ -368,28 +374,31 @@ export async function enrichConferencePapers(): Promise<number> {
 
   logger.info({ count: unenriched.length }, 'Starting Playwright enrichment');
 
-  // Group papers by venue — identify venue from rawText ("... VENUE YEAR." suffix)
-  // We check each VENUE_DBLP_KEYS name against the paper title as a best-effort heuristic.
-  // Papers whose venue cannot be identified fall into 'NeurIPS' bucket as a safe default.
-  const byVenue = new Map<string, typeof unenriched>();
+  // Group papers by (venue, year) — both values come from the initial conferenceMetadata
+  // written at harvest time, so no heuristic matching against the title is needed.
+  const byVenueYear = new Map<string, typeof unenriched>();
   for (const paper of unenriched) {
-    const venue = Object.keys(VENUE_DBLP_KEYS).find((v) =>
-      paper.title.includes(v)
-    ) ?? 'NeurIPS';
-    if (!byVenue.has(venue)) byVenue.set(venue, []);
-    byVenue.get(venue)!.push(paper);
+    const meta = paper.conferenceMetadata!;
+    const key = `${meta.venue}:${meta.year}`;
+    if (!byVenueYear.has(key)) byVenueYear.set(key, []);
+    byVenueYear.get(key)!.push(paper);
   }
 
   const browser = await chromium.launch({ headless: true });
   let enriched = 0;
 
   try {
-    for (const [venue, papers] of byVenue) {
+    for (const [key, papers] of byVenueYear) {
+      const [venue, yearStr] = key.split(':');
+      const year = parseInt(yearStr, 10);
       try {
-        const year = new Date().getFullYear();
         const page = await browser.newPage();
-        const entries = await scrapeVenue(page, venue, year);
-        await page.close();
+        let entries: ConferencePageEntry[] = [];
+        try {
+          entries = await scrapeVenue(page, venue, year);
+        } finally {
+          await page.close();
+        }
 
         logger.info({ venue, entries: entries.length, papers: papers.length }, 'Venue scraped');
 
