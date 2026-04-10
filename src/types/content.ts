@@ -48,6 +48,7 @@ export interface ContentItem {
   cohortRank: import('./critic').CohortRank | null;
   justification: import('./critic').JustificationDossier | null;
   trendIds: string[] | null;
+  conferenceMetadata: ConferenceMetadata | null;
   processingStatus: string;
   citationCount: number;
   engagementScore: number;
