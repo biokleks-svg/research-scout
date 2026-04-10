@@ -16,14 +16,14 @@ interface Props {
 
 export function CriticRadarChart({ scores }: Props) {
   const data = [
-    { dimension: 'Novelty',         value: scores.aiNovelty.score },
-    { dimension: 'Usefulness',      value: scores.usefulness.score },
-    { dimension: 'Rigor',           value: scores.methodologicalRigor.score },
-    { dimension: 'Reproducibility', value: scores.reproducibility.score },
-    { dimension: 'Buzz',            value: scores.webBuzz.score },
-    { dimension: 'Popularity',      value: scores.popularity.total },
-    { dimension: 'Industry',        value: scores.industryRelevance.score },
-    { dimension: 'Longevity',       value: scores.longevityPotential.score },
+    { dimension: 'Novelty',         value: scores.aiNovelty.score,           reasoning: scores.aiNovelty.reasoning },
+    { dimension: 'Usefulness',      value: scores.usefulness.score,          reasoning: scores.usefulness.reasoning },
+    { dimension: 'Rigor',           value: scores.methodologicalRigor.score, reasoning: scores.methodologicalRigor.reasoning },
+    { dimension: 'Reproducibility', value: scores.reproducibility.score,     reasoning: scores.reproducibility.reasoning },
+    { dimension: 'Buzz',            value: scores.webBuzz.score,             reasoning: scores.webBuzz.reasoning },
+    { dimension: 'Popularity',      value: scores.popularity.total,          reasoning: '' },
+    { dimension: 'Longevity',       value: scores.longevityPotential.score,  reasoning: scores.longevityPotential.reasoning },
+    { dimension: 'Industry',        value: scores.industryRelevance.score,   reasoning: scores.industryRelevance.reasoning },
   ];
 
   return (
@@ -43,14 +43,19 @@ export function CriticRadarChart({ scores }: Props) {
         </RadarChart>
       </ResponsiveContainer>
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-1 mt-4 text-sm">
-        {data.map(({ dimension, value }) => (
-          <div key={dimension} className="flex justify-between">
-            <dt className="text-muted-foreground">{dimension}</dt>
-            <dd className="font-medium">{value}</dd>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 mt-4">
+        {data.map((d) => (
+          <div key={d.dimension} className="flex flex-col gap-0.5">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium">{d.dimension}</span>
+              <span className="text-muted-foreground">{d.value}/100</span>
+            </div>
+            {d.reasoning ? (
+              <p className="text-xs text-muted-foreground">{d.reasoning}</p>
+            ) : null}
           </div>
         ))}
-      </dl>
+      </div>
     </div>
   );
 }

@@ -36,15 +36,23 @@ export function JustificationPanel({ justification }: Props) {
                   <tr className="border-b">
                     <th className="text-left py-1 text-muted-foreground font-medium">Rank</th>
                     <th className="text-left py-1 text-muted-foreground font-medium">Paper</th>
+                    <th className="text-right py-1 text-muted-foreground font-medium">Composite</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {justification.comparisonToTopPeers.map(peer => (
+                  {justification.comparisonToTopPeers.map(peer => {
+                    const scoreValues = Object.values(peer.scores);
+                    const composite = scoreValues.length > 0
+                      ? (scoreValues.reduce((sum, v) => sum + v, 0) / scoreValues.length).toFixed(1)
+                      : '—';
+                    return (
                     <tr key={peer.rank} className="border-b last:border-0">
                       <td className="py-1.5 pr-3 text-muted-foreground">#{peer.rank}</td>
                       <td className="py-1.5 text-muted-foreground">{peer.title}</td>
+                      <td className="py-1.5 text-right text-muted-foreground">{composite}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -57,9 +65,12 @@ export function JustificationPanel({ justification }: Props) {
               </h4>
               <ul className="text-xs text-muted-foreground space-y-1.5">
                 {justification.agentAuditTrail.map((entry, i) => (
-                  <li key={i} className="flex gap-2 items-baseline">
-                    <span className="font-medium shrink-0">{entry.agent}:</span>
-                    <span>{entry.action}</span>
+                  <li key={i} className="text-sm">
+                    <span className="font-medium">{entry.agent}</span>
+                    <span className="text-muted-foreground ml-2">{entry.action}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {new Date(entry.timestamp).toLocaleDateString()}
+                    </span>
                   </li>
                 ))}
               </ul>
