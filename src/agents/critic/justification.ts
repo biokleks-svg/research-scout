@@ -47,7 +47,7 @@ Return ONLY the explanation text — no JSON, no markdown, no preamble.
 Paper: "${title}"
 Topic cluster: ${clusterId}
 Week: ${weekId}
-Composite rank: top ${100 - compositeRank}% of ${totalInCohort} papers in its cohort
+Composite rank: ${compositeRank}th percentile of ${totalInCohort} papers in its cohort
 
 Top peers in this cohort:
 ${peersText}`;
@@ -98,7 +98,7 @@ export async function generateJustification(contentItemId: string): Promise<bool
       .where(
         and(
           isNotNull(contentItems.criticScores),
-          sql`taxonomy->>'primaryArea' = ${item.taxonomy?.primaryArea ?? ''}`,
+          sql`taxonomy->>'primaryArea' = ${item.taxonomy?.primaryArea ?? 'general'}`,
           sql`to_char(published_at, 'IYYY-"W"IW') = ${weekId}`,
         ),
       )
@@ -112,11 +112,7 @@ export async function generateJustification(contentItemId: string): Promise<bool
         title:     p.title,
         rank:      i + 1,
         composite: computeCompositeScore(p.criticScores!),
-        scores:    {
-          aiNovelty:  p.criticScores!.aiNovelty.score,
-          usefulness: p.criticScores!.usefulness.score,
-          popularity: p.criticScores!.popularity.total,
-        } as Record<string, number>,
+        scores:    {} as Record<string, number>,
       }));
 
     const model = getFlashModel();
@@ -130,9 +126,10 @@ export async function generateJustification(contentItemId: string): Promise<bool
     const positionExplanation = result.response.text().trim();
 
     const comparisonToTopPeers: PeerComparison[] = topPeers.map(p => ({
-      title:  p.title,
-      rank:   p.rank,
-      scores: p.scores,
+      title:     p.title,
+      rank:      p.rank,
+      composite: p.composite,
+      scores:    p.scores,
     }));
 
     const justification: JustificationDossier = {

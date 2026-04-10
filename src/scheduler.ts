@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import { harvestQueue, processQueue, criticQueue, intelligenceQueue } from '@/lib/queue';
 import { db } from '@/server/db';
 import { contentItems } from '@/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { pino } from 'pino';
 
 const logger = pino({ name: 'scheduler' });
@@ -32,21 +32,35 @@ cron.schedule('*/15 * * * *', async () => {
   }
 });
 
-// Every 30 minutes: enqueue critic jobs for 'processed' items
+// Every 30 minutes: enqueue critic jobs for 'processed' and 'scored' items
 cron.schedule('*/30 * * * *', async () => {
-  const pending = await db.query.contentItems.findMany({
-    where: eq(contentItems.processingStatus, 'processed'),
-    limit: 20,
-  });
+  const [toScore, toRankJustify] = await Promise.all([
+    db.query.contentItems.findMany({
+      where: eq(contentItems.processingStatus, 'processed'),
+      limit: 20,
+    }),
+    db.query.contentItems.findMany({
+      where: inArray(contentItems.processingStatus, ['scored']),
+      limit: 20,
+    }),
+  ]);
 
-  if (pending.length === 0) return;
+  const total = toScore.length + toRankJustify.length;
+  if (total === 0) return;
 
-  logger.info({ count: pending.length }, 'Enqueueing critic jobs');
-  for (const item of pending) {
+  logger.info({ toScore: toScore.length, toRankJustify: toRankJustify.length }, 'Enqueueing critic jobs');
+  for (const item of toScore) {
     await criticQueue.add(
       `critic-${item.id}`,
       { contentItemId: item.id, stages: ['score', 'rank', 'justify'] },
       { jobId: `critic-${item.id}` },
+    );
+  }
+  for (const item of toRankJustify) {
+    await criticQueue.add(
+      `critic-rank-${item.id}`,
+      { contentItemId: item.id, stages: ['rank', 'justify'] },
+      { jobId: `critic-rank-${item.id}` },
     );
   }
 });

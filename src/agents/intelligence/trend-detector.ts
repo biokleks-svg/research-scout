@@ -35,8 +35,8 @@ export function nextTrendStatus(
     return current ?? 'emerging';
   }
   if (
-    zScore < TREND_Z_SCORE_FADING &&
-    (current === 'peak' || current === 'fading') &&
+    zScore < TREND_Z_SCORE_EMERGING &&
+    (current === 'emerging' || current === 'peak' || current === 'fading') &&
     (daysSincePeak ?? 0) >= TREND_FADING_DAYS
   ) {
     return 'fading';
@@ -67,8 +67,9 @@ interface WeeklyRow {
 
 async function upsertTrend(category: string, slug: string, zScore: number): Promise<void> {
   const existing = await db.query.trends.findFirst({ where: eq(trends.slug, slug) });
-  const daysSincePeak = existing?.peakedAt
-    ? Math.floor((Date.now() - existing.peakedAt.getTime()) / 86400000)
+  const relevantDate = existing?.peakedAt ?? existing?.detectedAt ?? null;
+  const daysSincePeak = relevantDate
+    ? Math.floor((Date.now() - relevantDate.getTime()) / 86400000)
     : null;
 
   const newStatus = nextTrendStatus(
@@ -106,9 +107,8 @@ async function maybeFadeTrend(slug: string, zScore: number): Promise<void> {
   const existing = await db.query.trends.findFirst({ where: eq(trends.slug, slug) });
   if (!existing) return;
 
-  const daysSincePeak = existing.peakedAt
-    ? Math.floor((Date.now() - existing.peakedAt.getTime()) / 86400000)
-    : 0;
+  const relevantDate = existing.peakedAt ?? existing.detectedAt;
+  const daysSincePeak = Math.floor((Date.now() - relevantDate.getTime()) / 86400000);
 
   const newStatus = nextTrendStatus(existing.status as TrendStatus, zScore, daysSincePeak);
   if (newStatus !== existing.status) {

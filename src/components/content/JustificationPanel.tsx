@@ -40,19 +40,13 @@ export function JustificationPanel({ justification }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {justification.comparisonToTopPeers.map(peer => {
-                    const scoreValues = Object.values(peer.scores);
-                    const composite = scoreValues.length > 0
-                      ? (scoreValues.reduce((sum, v) => sum + v, 0) / scoreValues.length).toFixed(1)
-                      : '—';
-                    return (
+                  {justification.comparisonToTopPeers.map(peer => (
                     <tr key={peer.rank} className="border-b last:border-0">
                       <td className="py-1.5 pr-3 text-muted-foreground">{peer.title}</td>
-                      <td className="py-1.5 text-right text-muted-foreground">{composite}</td>
+                      <td className="py-1.5 text-right text-muted-foreground">{peer.composite}</td>
                       <td className="py-1.5 text-right text-muted-foreground">#{peer.rank}</td>
                     </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>

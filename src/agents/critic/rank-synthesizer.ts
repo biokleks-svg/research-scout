@@ -55,12 +55,14 @@ export async function synthesizeCohortRank(contentItemId: string): Promise<boole
         publishedAt:  contentItems.publishedAt,
         taxonomy:     contentItems.taxonomy,
         criticScores: contentItems.criticScores,
+        cohortRank:   contentItems.cohortRank,
       })
       .from(contentItems)
       .where(eq(contentItems.id, contentItemId))
       .limit(1);
 
     if (!item) { logger.warn({ contentItemId }, 'Item not found'); return false; }
+    if (item.cohortRank) { logger.info({ contentItemId }, 'Already ranked, skipping'); return true; }
     if (!item.criticScores) { logger.warn({ contentItemId }, 'No criticScores yet — run scorer first'); return false; }
 
     const clusterId = getClusterId(item.taxonomy);
@@ -76,7 +78,7 @@ export async function synthesizeCohortRank(contentItemId: string): Promise<boole
       .where(
         and(
           isNotNull(contentItems.criticScores),
-          sql`taxonomy->>'primaryArea' = ${item.taxonomy?.primaryArea ?? ''}`,
+          sql`taxonomy->>'primaryArea' = ${item.taxonomy?.primaryArea ?? 'general'}`,
           sql`to_char(published_at, 'IYYY-"W"IW') = ${weekId}`,
         ),
       );

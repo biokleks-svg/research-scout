@@ -44,6 +44,11 @@ export async function narrateActiveTrends(): Promise<void> {
 
   for (const trend of activeTrends) {
     try {
+      if (trend.narrative) {
+        logger.info({ trendId: trend.id }, 'Narrative already exists, skipping');
+        continue;
+      }
+
       const topPapers = await db
         .select({ title: contentItems.title, summary: contentItems.summary })
         .from(contentItems)

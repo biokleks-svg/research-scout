@@ -36,9 +36,10 @@ export interface AuditEntry {
 }
 
 export interface PeerComparison {
-  title:  string;
-  rank:   number;
-  scores: Record<string, number>;
+  title:     string;
+  rank:      number;
+  composite: number;
+  scores:    Record<string, number>;
 }
 
 export interface JustificationDossier {
