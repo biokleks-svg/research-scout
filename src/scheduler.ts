@@ -65,6 +65,26 @@ cron.schedule('*/30 * * * *', async () => {
   }
 });
 
+// Every 6 hours: harvest blogs + HuggingFace trending models
+cron.schedule('0 */6 * * *', async () => {
+  logger.info('Scheduling blog harvest job');
+  await harvestQueue.add('harvest-blogs', { agentType: 'blog' });
+  await harvestQueue.add('harvest-huggingface', { agentType: 'huggingface' });
+});
+
+// Every 2 hours: harvest social (Bluesky + HN)
+cron.schedule('0 */2 * * *', async () => {
+  logger.info('Scheduling social harvest job');
+  await harvestQueue.add('harvest-social', { agentType: 'social' });
+});
+
+// Every 6 hours: harvest YouTube videos (only runs if YOUTUBE_API_KEY is set)
+cron.schedule('0 */6 * * *', async () => {
+  if (!process.env.YOUTUBE_API_KEY) return;
+  logger.info('Scheduling video harvest job');
+  await harvestQueue.add('harvest-video', { agentType: 'video' });
+});
+
 // Daily at 02:00 UTC: detect trends + propagate bonuses
 cron.schedule('0 2 * * *', async () => {
   logger.info('Scheduling trend detection job');
@@ -77,4 +97,4 @@ cron.schedule('0 3 * * *', async () => {
   await intelligenceQueue.add('narrate-trends', { jobType: 'narrate-trends' });
 });
 
-logger.info('Scheduler started. Paper harvest: every 2h. Classify: every 15min. Critic: every 30min. Trend detection: daily 02:00 UTC. Narration: daily 03:00 UTC.');
+logger.info('Scheduler started. Paper: 2h. Classify: 15min. Critic: 30min. Blog/HF: 6h. Social: 2h. Video: 6h. Trend detection: 02:00 UTC. Narration: 03:00 UTC.');
