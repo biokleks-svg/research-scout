@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import pRetry from 'p-retry';
+import { chromium, type Page } from 'playwright';
 import { db } from '@/server/db';
 import { contentItems, processingRegistry } from '@/server/db/schema';
 import { and, eq, isNull, gt } from 'drizzle-orm';
@@ -237,4 +238,190 @@ export async function harvestConferences(maxPerVenue = 250): Promise<number> {
 
   logger.info({ total }, 'Conference DBLP harvest complete');
   return total;
+}
+
+// ─── Playwright enrichment ───────────────────────────────────────────────────
+
+/**
+ * Per-venue page scrapers. Each returns a list of ConferencePageEntry objects.
+ * Returns [] on failure — callers handle empty results gracefully.
+ */
+
+async function scrapeNeurIPS(page: Page, year: number): Promise<ConferencePageEntry[]> {
+  try {
+    await page.goto(getConferenceUrl('NeurIPS', year), { timeout: 15000 });
+    const entries = await page.$$eval('li.conference, .paper-title-cell, li', (els) =>
+      els.map((el) => ({
+        title: (el.querySelector('a') ?? el).textContent?.trim() ?? '',
+        recordingUrl: (el.querySelector('a[href*="youtube"], a[href*="slideslive"]') as HTMLAnchorElement)?.href,
+        sessionTrack: el.querySelector('.oral-label, .poster-label, .spotlight-label')?.textContent?.trim(),
+      })),
+    );
+    return entries.filter((e) => e.title.length > 10);
+  } catch (err) {
+    logger.warn({ venue: 'NeurIPS', year, err }, 'NeurIPS scrape failed');
+    return [];
+  }
+}
+
+async function scrapeACLAnthology(page: Page, venue: string, year: number): Promise<ConferencePageEntry[]> {
+  try {
+    await page.goto(getConferenceUrl(venue, year), { timeout: 15000 });
+    const entries = await page.$$eval('.paper-title, strong.align-middle', (els) =>
+      els.map((el) => {
+        const row = el.closest('p, li, .row');
+        return {
+          title: el.textContent?.trim() ?? '',
+          recordingUrl: (row?.querySelector('a[href*="anthology"], a[href*="aclanthology"]') as HTMLAnchorElement)?.href,
+          sessionTrack: row?.querySelector('.badge')?.textContent?.trim(),
+        };
+      }),
+    );
+    return entries.filter((e) => e.title.length > 10);
+  } catch (err) {
+    logger.warn({ venue, year, err }, 'ACL Anthology scrape failed');
+    return [];
+  }
+}
+
+async function scrapeOpenReview(page: Page, venue: string, year: number): Promise<ConferencePageEntry[]> {
+  try {
+    await page.goto(getConferenceUrl(venue, year), { timeout: 15000 });
+    const entries = await page.$$eval('.note-content-title, .paper-title', (els) =>
+      els.map((el) => {
+        const card = el.closest('.note, .paper-card');
+        return {
+          title: el.textContent?.trim() ?? '',
+          sessionTrack: card?.querySelector('.decision, .venue-decision')?.textContent?.trim(),
+          acceptanceStatus: card?.querySelector('[class*="oral"], [class*="spotlight"], [class*="poster"]')?.textContent?.trim(),
+        };
+      }),
+    );
+    return entries.filter((e) => e.title.length > 10);
+  } catch (err) {
+    logger.warn({ venue, year, err }, 'OpenReview scrape failed');
+    return [];
+  }
+}
+
+async function scrapeCVPR(page: Page, year: number): Promise<ConferencePageEntry[]> {
+  try {
+    await page.goto(getConferenceUrl('CVPR', year), { timeout: 15000 });
+    const entries = await page.$$eval('dt.ptitle, .ptitle', (els) =>
+      els.map((el) => ({
+        title: el.querySelector('a')?.textContent?.trim() ?? el.textContent?.trim() ?? '',
+        recordingUrl: undefined,
+        sessionTrack: 'accepted',
+      })),
+    );
+    return entries.filter((e) => e.title.length > 10);
+  } catch (err) {
+    logger.warn({ venue: 'CVPR', year, err }, 'CVPR scrape failed');
+    return [];
+  }
+}
+
+async function scrapeGenericProceedings(page: Page, venue: string, year: number): Promise<ConferencePageEntry[]> {
+  try {
+    await page.goto(getConferenceUrl(venue, year), { timeout: 15000 });
+    const entries = await page.$$eval('h3 a, h4 a, .paper a, .title a, li a', (els) =>
+      els
+        .filter((el) => (el.textContent?.trim().length ?? 0) > 15)
+        .map((el) => ({ title: el.textContent?.trim() ?? '' })),
+    );
+    return entries.filter((e) => e.title.length > 10);
+  } catch (err) {
+    logger.warn({ venue, year, err }, 'Generic proceedings scrape failed');
+    return [];
+  }
+}
+
+async function scrapeVenue(page: Page, venue: string, year: number): Promise<ConferencePageEntry[]> {
+  switch (venue) {
+    case 'NeurIPS': return scrapeNeurIPS(page, year);
+    case 'ACL':
+    case 'EMNLP':   return scrapeACLAnthology(page, venue, year);
+    case 'ICLR':    return scrapeOpenReview(page, venue, year);
+    case 'CVPR':    return scrapeCVPR(page, year);
+    default:        return scrapeGenericProceedings(page, venue, year);
+  }
+}
+
+export async function enrichConferencePapers(): Promise<number> {
+  const windowStart = new Date();
+  windowStart.setDate(windowStart.getDate() - CONFERENCE_ENRICH_WINDOW_DAYS);
+
+  const unenriched = await db.query.contentItems.findMany({
+    where: and(
+      eq(contentItems.sourceType, 'conference'),
+      isNull(contentItems.conferenceMetadata),
+      gt(contentItems.publishedAt, windowStart),
+    ),
+    columns: { id: true, title: true, publishedAt: true, conferenceMetadata: true },
+    limit: 500,
+  });
+
+  if (unenriched.length === 0) {
+    logger.info('No unenriched conference papers found');
+    return 0;
+  }
+
+  logger.info({ count: unenriched.length }, 'Starting Playwright enrichment');
+
+  // Group papers by venue — identify venue from rawText ("... VENUE YEAR." suffix)
+  // We check each VENUE_DBLP_KEYS name against the paper title as a best-effort heuristic.
+  // Papers whose venue cannot be identified fall into 'NeurIPS' bucket as a safe default.
+  const byVenue = new Map<string, typeof unenriched>();
+  for (const paper of unenriched) {
+    const venue = Object.keys(VENUE_DBLP_KEYS).find((v) =>
+      paper.title.includes(v)
+    ) ?? 'NeurIPS';
+    if (!byVenue.has(venue)) byVenue.set(venue, []);
+    byVenue.get(venue)!.push(paper);
+  }
+
+  const browser = await chromium.launch({ headless: true });
+  let enriched = 0;
+
+  try {
+    for (const [venue, papers] of byVenue) {
+      try {
+        const year = new Date().getFullYear();
+        const page = await browser.newPage();
+        const entries = await scrapeVenue(page, venue, year);
+        await page.close();
+
+        logger.info({ venue, entries: entries.length, papers: papers.length }, 'Venue scraped');
+
+        for (const paper of papers) {
+          const match = matchPaperToPage(paper.title, entries);
+          if (!match) continue;
+
+          const meta: ConferenceMetadata = {
+            venue,
+            year,
+            sessionTrack:     match.sessionTrack,
+            acceptanceStatus: match.acceptanceStatus,
+            recordingUrl:     match.recordingUrl,
+            abstract:         match.abstract,
+            enrichedAt:       new Date().toISOString(),
+          };
+
+          await db
+            .update(contentItems)
+            .set({ conferenceMetadata: meta })
+            .where(eq(contentItems.id, paper.id));
+
+          enriched++;
+        }
+      } catch (err) {
+        logger.error({ venue, err }, 'Venue enrichment failed, continuing');
+      }
+    }
+  } finally {
+    await browser.close();
+  }
+
+  logger.info({ enriched }, 'Conference enrichment complete');
+  return enriched;
 }
