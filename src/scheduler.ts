@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { harvestQueue, processQueue } from '@/lib/queue';
+import { harvestQueue, processQueue, criticQueue, intelligenceQueue } from '@/lib/queue';
 import { db } from '@/server/db';
 import { contentItems } from '@/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -32,4 +32,23 @@ cron.schedule('*/15 * * * *', async () => {
   }
 });
 
-logger.info('Scheduler started. Paper harvest: every 2h. Classify sweep: every 15min.');
+// Every 30 minutes: enqueue critic jobs for 'processed' items
+cron.schedule('*/30 * * * *', async () => {
+  const pending = await db.query.contentItems.findMany({
+    where: eq(contentItems.processingStatus, 'processed'),
+    limit: 20,
+  });
+
+  if (pending.length === 0) return;
+
+  logger.info({ count: pending.length }, 'Enqueueing critic jobs');
+  for (const item of pending) {
+    await criticQueue.add(
+      `critic-${item.id}`,
+      { contentItemId: item.id, stages: ['score', 'rank', 'justify'] },
+      { jobId: `critic-${item.id}` },
+    );
+  }
+});
+
+logger.info('Scheduler started. Paper harvest: every 2h. Classify sweep: every 15min. Critic sweep: every 30min.');
