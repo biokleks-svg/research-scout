@@ -87,3 +87,8 @@ export const REC_WEIGHT_RELEVANCE = 0.40;
 export const REC_WEIGHT_QUALITY   = 0.30;
 export const REC_WEIGHT_FRESHNESS = 0.20;
 export const REC_WEIGHT_TREND     = 0.10;
+
+// Conference harvester
+export const DBLP_API_BASE                = 'https://dblp.org/search/publ/api';
+export const DBLP_RATE_LIMIT_MS          = 1000;
+export const CONFERENCE_ENRICH_WINDOW_DAYS = 30;

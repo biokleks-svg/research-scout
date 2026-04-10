@@ -4,6 +4,7 @@ import {
   QUEUE_HARVEST, QUEUE_PROCESS, DEFAULT_FEED_LIMIT,
   HF_API_BASE, BLUESKY_API_BASE, HN_API_BASE,
   REC_ENGINE_WINDOW_DAYS, REC_ENGINE_CANDIDATE_LIMIT, REC_ENGINE_OUTPUT_LIMIT,
+  DBLP_API_BASE, DBLP_RATE_LIMIT_MS, CONFERENCE_ENRICH_WINDOW_DAYS,
 } from '../constants';
 
 describe('constants', () => {
@@ -48,5 +49,17 @@ describe('constants', () => {
 
   it('has REC_ENGINE_OUTPUT_LIMIT', () => {
     expect(REC_ENGINE_OUTPUT_LIMIT).toBe(20);
+  });
+
+  it('has DBLP_API_BASE', () => {
+    expect(DBLP_API_BASE).toBe('https://dblp.org/search/publ/api');
+  });
+
+  it('has DBLP_RATE_LIMIT_MS', () => {
+    expect(DBLP_RATE_LIMIT_MS).toBe(1000);
+  });
+
+  it('has CONFERENCE_ENRICH_WINDOW_DAYS', () => {
+    expect(CONFERENCE_ENRICH_WINDOW_DAYS).toBe(30);
   });
 });
