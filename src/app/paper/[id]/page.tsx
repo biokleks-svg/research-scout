@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { PodcastButton } from '@/components/content/PodcastButton';
 import { CriticRadarChart } from '@/components/content/CriticRadarChart';
 import { JustificationPanel } from '@/components/content/JustificationPanel';
+import { FeedbackBar } from '@/components/content/FeedbackBar';
 import type { PodcastStatusValue } from '@/agents/processors/podcast';
 
 interface Props {
@@ -71,6 +72,7 @@ export default async function PaperPage({ params }: Props) {
             initialStatus={podcastInitialStatus}
           />
         </div>
+        <FeedbackBar contentId={item.id} />
       </div>
 
       {item.infographicUrl && (
