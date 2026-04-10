@@ -1,7 +1,7 @@
 import { db } from '@/server/db';
 import { trends } from '@/server/db/schema';
 import { ne, desc, sql } from 'drizzle-orm';
-import { CategoryTabs } from '@/components/trends/CategoryTabs';
+import { TrendsClientShell } from '@/components/trends/TrendsClientShell';
 import type { TrendViewModel } from '@/components/trends/TrendCard';
 
 export const revalidate = 300;
@@ -33,13 +33,13 @@ export default async function TrendingPage() {
     status:        r.status as TrendViewModel['status'],
     momentumScore: r.momentumScore,
     narrative:     r.narrative,
-    detectedAt:    r.detectedAt?.toISOString() ?? new Date().toISOString(),
+    detectedAt:    r.detectedAt.toISOString(),
   }));
 
   return (
     <main className="max-w-6xl mx-auto py-10 px-4 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Trending in AI/ML</h1>
+        <h1 className="text-2xl font-bold">Trending in AI Research</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Topics gaining momentum across papers, social media, and code releases. Updated daily.
         </p>
@@ -53,7 +53,7 @@ export default async function TrendingPage() {
           </p>
         </div>
       ) : (
-        <CategoryTabs trends={trendData} categories={categories} />
+        <TrendsClientShell trends={trendData} categories={categories} />
       )}
     </main>
   );
