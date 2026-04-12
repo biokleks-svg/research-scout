@@ -3,6 +3,7 @@ import { trends } from '@/server/db/schema';
 import { ne, desc, sql } from 'drizzle-orm';
 import { TrendsClientShell } from '@/components/trends/TrendsClientShell';
 import type { TrendViewModel } from '@/components/trends/TrendCard';
+import Link from 'next/link';
 
 export const revalidate = 300;
 
@@ -38,11 +39,16 @@ export default async function TrendingPage() {
 
   return (
     <main className="max-w-6xl mx-auto py-10 px-4 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Trending in AI Research</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Topics gaining momentum across papers, social media, and code releases. Updated daily.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Trending in AI Research</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Topics gaining momentum across papers, social media, and code releases. Updated daily.
+          </p>
+        </div>
+        <Link href="/forecast" className="text-sm text-muted-foreground hover:underline whitespace-nowrap">
+          View 6-month forecast →
+        </Link>
       </div>
 
       {trendData.length === 0 ? (
