@@ -5,6 +5,9 @@ vi.mock('@/agents/intelligence/trend-narrator',   () => ({ narrateActiveTrends: 
 vi.mock('@/agents/intelligence/trend-propagator', () => ({ propagateAllActiveTrends: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/agents/intelligence/rec-engine',       () => ({ buildRecommendations:     vi.fn().mockResolvedValue([]) }));
 vi.mock('@/agents/intelligence/digest-composer',  () => ({ composeDigestForAllUsers: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/agents/intelligence/area-forecaster', () => ({
+  runAreaForecasts: vi.fn().mockResolvedValue(5),
+}));
 vi.mock('@/server/db/schema', () => ({ users: {} }));
 vi.mock('drizzle-orm',        () => ({ isNotNull: vi.fn() }));
 vi.mock('@/server/db',        () => ({ db: { query: { users: { findMany: vi.fn().mockResolvedValue([]) } } } }));
@@ -45,5 +48,12 @@ describe('intelligenceJob', () => {
 
   it('returns true (stub) for "compose-digest"', async () => {
     expect(await intelligenceJob('compose-digest')).toBe(true);
+  });
+
+  it('calls runAreaForecasts for "run-area-forecasts"', async () => {
+    const { runAreaForecasts } = await import('@/agents/intelligence/area-forecaster');
+    const result = await intelligenceJob('run-area-forecasts');
+    expect(runAreaForecasts).toHaveBeenCalled();
+    expect(result).toBe(true);
   });
 });

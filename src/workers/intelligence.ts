@@ -5,6 +5,7 @@ import { detectTrends }            from '@/agents/intelligence/trend-detector';
 import { narrateActiveTrends }      from '@/agents/intelligence/trend-narrator';
 import { propagateAllActiveTrends } from '@/agents/intelligence/trend-propagator';
 import { composeDigestForAllUsers } from '@/agents/intelligence/digest-composer';
+import { runAreaForecasts }         from '@/agents/intelligence/area-forecaster';
 import type { IntelligenceJobData } from '@/lib/queue';
 import { pino } from 'pino';
 
@@ -28,6 +29,9 @@ export async function intelligenceJob(jobType: IntelligenceJobData['jobType']): 
     }
     case 'compose-digest':
       await composeDigestForAllUsers();
+      return true;
+    case 'run-area-forecasts':
+      await runAreaForecasts();
       return true;
     default:
       logger.warn({ jobType }, 'Unknown job type');

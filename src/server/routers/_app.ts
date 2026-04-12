@@ -6,6 +6,7 @@ import { trendsRouter }   from './trends';
 import { contentRouter }  from './content';
 import { feedbackRouter } from './feedback';
 import { settingsRouter } from './settings';
+import { forecastRouter } from './forecast';
 
 export const appRouter = router({
   feed:     feedRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   content:  contentRouter,
   feedback: feedbackRouter,
   settings: settingsRouter,
+  forecast: forecastRouter,
 });
 
 export type AppRouter = typeof appRouter;
