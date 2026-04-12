@@ -1,7 +1,11 @@
 import { db } from '@/server/db';
 import { sql } from 'drizzle-orm';
-import type { AreaForecastSignals } from '@/types/trends';
+import type { AreaForecastSignals, AreaForecastPrediction } from '@/types/trends';
 import { pino } from 'pino';
+import { z } from 'zod';
+import { areaForecasts } from '@/server/db/schema';
+import { getProModel } from '@/lib/gemini';
+import pRetry from 'p-retry';
 
 const logger = pino({ name: 'area-forecaster' });
 
@@ -111,4 +115,100 @@ export async function aggregateSignals(area: string): Promise<AreaForecastSignal
   if (nonZeroWeeks < 4) return null;
 
   return { clusterGrowthRate, citationVelocity, engagementTrend, harvestVolume };
+}
+
+// ─── Gemini forecast call ────────────────────────────────────────────────────
+
+export const ForecastResponseSchema = z.object({
+  growthPercent: z.number(),
+  confidence:    z.enum(['low', 'medium', 'high']),
+  narrative:     z.string().min(10).max(500),
+});
+
+export type ForecastResponse = z.infer<typeof ForecastResponseSchema>;
+
+function buildForecastPrompt(area: string, signals: AreaForecastSignals): string {
+  return `You are analyzing research trend data for the taxonomy area "${area}".
+
+Historical data (8 weeks, oldest first):
+- Weekly paper/content counts: ${JSON.stringify(signals.clusterGrowthRate)}
+- Weekly average citation counts: ${JSON.stringify(signals.citationVelocity)}
+- Weekly average engagement scores: ${JSON.stringify(signals.engagementTrend)}
+- Weekly total harvest volume: ${JSON.stringify(signals.harvestVolume)}
+
+Based on this data, predict the 6-month growth trajectory for this area.
+
+Return a JSON object with EXACTLY these fields (no extra text, no markdown):
+{
+  "growthPercent": <number, positive=growth, negative=decline>,
+  "confidence": <"low" | "medium" | "high">,
+  "narrative": <string, 2-3 sentences explaining why this area is trending or declining>
+}`;
+}
+
+async function callGeminiForForecast(
+  area: string,
+  signals: AreaForecastSignals,
+): Promise<ForecastResponse> {
+  return pRetry(
+    async () => {
+      const model  = getProModel();
+      const result = await model.generateContent(buildForecastPrompt(area, signals));
+      const text   = result.response.text().trim();
+      // Strip markdown code fences if present
+      const json = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+      const parsed = JSON.parse(json) as unknown;
+      return ForecastResponseSchema.parse(parsed);
+    },
+    { retries: 2, minTimeout: 2000 },
+  );
+}
+
+// ─── Coordinator ─────────────────────────────────────────────────────────────
+
+export async function runAreaForecasts(): Promise<number> {
+  logger.info('Starting area forecast run');
+
+  const areas = await getDistinctAreas();
+  if (areas.length === 0) {
+    logger.info('No taxonomy areas found — skipping forecast');
+    return 0;
+  }
+
+  const forecastDate = new Date();
+  let count = 0;
+
+  for (const area of areas) {
+    try {
+      const signals = await aggregateSignals(area);
+      if (!signals) {
+        logger.info({ area }, 'Insufficient signal data — skipping area');
+        continue;
+      }
+
+      const response = await callGeminiForForecast(area, signals);
+
+      const prediction: AreaForecastPrediction = {
+        growthPercent: response.growthPercent,
+        confidence:    response.confidence,
+        horizon:       '6mo',
+      };
+
+      await db.insert(areaForecasts).values({
+        taxonomyArea: area,
+        forecastDate,
+        signals,
+        prediction,
+        narrative: response.narrative,
+      });
+
+      count++;
+      logger.info({ area, growthPercent: response.growthPercent }, 'Area forecast persisted');
+    } catch (err) {
+      logger.error({ area, err }, 'Failed to forecast area — continuing');
+    }
+  }
+
+  logger.info({ count }, 'Area forecast run complete');
+  return count;
 }

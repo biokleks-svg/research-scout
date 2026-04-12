@@ -9,7 +9,7 @@ vi.mock('@/server/db', () => ({
 vi.mock('pino', () => ({ pino: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })) }));
 
 import { db } from '@/server/db';
-import { aggregateSignals, getDistinctAreas } from '../area-forecaster';
+import { aggregateSignals, getDistinctAreas, ForecastResponseSchema } from '../area-forecaster';
 
 // Mirror of the implementation's getMondayOfWeek so test data aligns with real output
 function getMondayOfWeek(date: Date): Date {
@@ -94,5 +94,31 @@ describe('aggregateSignals', () => {
     // The two oldest slots should be 0
     expect(signals!.clusterGrowthRate[0]).toBe(0);
     expect(signals!.clusterGrowthRate[1]).toBe(0);
+  });
+});
+
+describe('ForecastResponseSchema', () => {
+  it('accepts a valid forecast response', () => {
+    const valid = {
+      growthPercent: 42.5,
+      confidence: 'high',
+      narrative: 'Vision-language models are accelerating due to large-scale pretraining.',
+    };
+    expect(() => ForecastResponseSchema.parse(valid)).not.toThrow();
+  });
+
+  it('rejects missing confidence field', () => {
+    const invalid = { growthPercent: 10, narrative: 'Some text here long enough.' };
+    expect(() => ForecastResponseSchema.parse(invalid)).toThrow();
+  });
+
+  it('rejects invalid confidence value', () => {
+    const invalid = { growthPercent: 10, confidence: 'very-high', narrative: 'Some text here.' };
+    expect(() => ForecastResponseSchema.parse(invalid)).toThrow();
+  });
+
+  it('rejects narrative shorter than 10 characters', () => {
+    const invalid = { growthPercent: 10, confidence: 'low', narrative: 'Too short' };
+    expect(() => ForecastResponseSchema.parse(invalid)).toThrow();
   });
 });
