@@ -3,7 +3,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { TaxonomyTags, SummarySchema, RegistryStages, ConferenceMetadata } from '@/types/content';
 import type { CriticScores, CohortRank, JustificationDossier } from '@/types/critic';
-import type { TrendSignals } from '@/types/trends';
+import type { TrendSignals, AreaForecastSignals, AreaForecastPrediction } from '@/types/trends';
 import type { InterestTag, UserSettings } from '@/types/user';
 
 // ─── content_items ─────────────────────────────────────────────────────────
@@ -147,3 +147,15 @@ export const sessions = pgTable('sessions', {
 }, (table) => ({
   userIdIdx: index('sessions_user_id_idx').on(table.userId),
 }));
+
+// ─── area_forecasts ────────────────────────────────────────────────────────
+
+export const areaForecasts = pgTable('area_forecasts', {
+  id:           uuid('id').defaultRandom().primaryKey(),
+  taxonomyArea: text('taxonomy_area').notNull(),
+  forecastDate: timestamp('forecast_date').notNull(),
+  signals:      jsonb('signals').$type<AreaForecastSignals>().notNull(),
+  prediction:   jsonb('prediction').$type<AreaForecastPrediction>().notNull(),
+  narrative:    text('narrative').notNull(),
+  createdAt:    timestamp('created_at').defaultNow(),
+});

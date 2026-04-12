@@ -50,7 +50,7 @@ export interface PodcastJobData {
 }
 
 export interface IntelligenceJobData {
-  jobType: 'detect-trends' | 'narrate-trends' | 'build-recommendations' | 'compose-digest';
+  jobType: 'detect-trends' | 'narrate-trends' | 'build-recommendations' | 'compose-digest' | 'run-area-forecasts';
   params?: Record<string, unknown>;
 }
 
