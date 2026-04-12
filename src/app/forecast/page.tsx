@@ -37,9 +37,8 @@ export default async function ForecastPage() {
 
       {rows.length === 0 ? (
         <div className="text-center py-20 border rounded-lg bg-muted/20">
-          <p className="font-medium text-muted-foreground">No forecasts yet.</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Run one from the{' '}
+          <p className="text-muted-foreground">
+            No forecasts yet. Run one from the{' '}
             <Link href="/admin" className="underline">Admin Dashboard</Link>.
           </p>
         </div>
