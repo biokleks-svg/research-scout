@@ -150,9 +150,9 @@ async function callGeminiForForecast(
   area: string,
   signals: AreaForecastSignals,
 ): Promise<ForecastResponse> {
+  const model = getProModel();
   return pRetry(
     async () => {
-      const model  = getProModel();
       const result = await model.generateContent(buildForecastPrompt(area, signals));
       const text   = result.response.text().trim();
       // Strip markdown code fences if present
@@ -200,7 +200,7 @@ export async function runAreaForecasts(): Promise<number> {
         signals,
         prediction,
         narrative: response.narrative,
-      });
+      }).onConflictDoNothing();
 
       count++;
       logger.info({ area, growthPercent: response.growthPercent }, 'Area forecast persisted');

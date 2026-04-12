@@ -1,6 +1,7 @@
 import {
-  pgTable, uuid, text, timestamp, integer, real, jsonb, index, unique, vector,
+  pgTable, uuid, text, timestamp, integer, real, jsonb, index, unique, uniqueIndex, vector,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import type { TaxonomyTags, SummarySchema, RegistryStages, ConferenceMetadata } from '@/types/content';
 import type { CriticScores, CohortRank, JustificationDossier } from '@/types/critic';
 import type { TrendSignals, AreaForecastSignals, AreaForecastPrediction } from '@/types/trends';
@@ -158,4 +159,9 @@ export const areaForecasts = pgTable('area_forecasts', {
   prediction:   jsonb('prediction').$type<AreaForecastPrediction>().notNull(),
   narrative:    text('narrative').notNull(),
   createdAt:    timestamp('created_at').defaultNow(),
-});
+}, (table) => ({
+  uniqueAreaDate: uniqueIndex('area_forecasts_area_date_unique').on(
+    table.taxonomyArea,
+    sql`DATE(${table.forecastDate})`,
+  ),
+}));

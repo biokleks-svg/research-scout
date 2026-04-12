@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "area_forecasts_area_date_unique" ON "area_forecasts" USING btree ("taxonomy_area",DATE("forecast_date"));
