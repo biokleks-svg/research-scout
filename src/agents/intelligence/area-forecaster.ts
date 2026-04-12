@@ -1,0 +1,93 @@
+import { db } from '@/server/db';
+import { areaForecasts } from '@/server/db/schema';
+import { sql } from 'drizzle-orm';
+import { getProModel } from '@/lib/gemini';
+import pRetry from 'p-retry';
+import { z } from 'zod';
+import type { AreaForecastSignals, AreaForecastPrediction } from '@/types/trends';
+import { pino } from 'pino';
+
+const logger = pino({ name: 'area-forecaster' });
+
+// ─── Signal aggregation ──────────────────────────────────────────────────────
+
+/** Returns distinct taxonomy primaryArea values seen in the last 56 days. */
+export async function getDistinctAreas(): Promise<string[]> {
+  const result = await db.execute(sql`
+    SELECT DISTINCT taxonomy->>'primaryArea' AS primary_area
+    FROM content_items
+    WHERE
+      published_at > NOW() - INTERVAL '56 days'
+      AND taxonomy->>'primaryArea' IS NOT NULL
+    ORDER BY primary_area
+  `);
+  return (result as unknown as { rows: Array<{ primary_area: string }> })
+    .rows.map(r => r.primary_area);
+}
+
+/**
+ * Aggregates 4 signals for a taxonomy area over the last 8 weeks.
+ * Returns null if fewer than 4 weeks have non-zero counts (insufficient signal).
+ * Missing weeks are filled with 0.
+ */
+export async function aggregateSignals(area: string): Promise<AreaForecastSignals | null> {
+  const result = await db.execute(sql`
+    SELECT
+      DATE_TRUNC('week', published_at)   AS week,
+      COUNT(*)::int                       AS count,
+      AVG(citation_count)::float          AS avg_citations,
+      AVG(engagement_score)::float        AS avg_engagement
+    FROM content_items
+    WHERE
+      published_at > NOW() - INTERVAL '56 days'
+      AND taxonomy->>'primaryArea' = ${area}
+    GROUP BY week
+    ORDER BY week ASC
+  `);
+
+  type WeekRow = {
+    week:           string;
+    count:          string;
+    avg_citations:  string;
+    avg_engagement: string;
+  };
+  const rows = (result as unknown as { rows: WeekRow[] }).rows;
+
+  // Build a map from week-start ISO date string → row
+  const rowMap = new Map<string, WeekRow>();
+  for (const row of rows) {
+    const key = new Date(row.week).toISOString().slice(0, 10);
+    rowMap.set(key, row);
+  }
+
+  // Generate the 8 expected week-start dates (7-day buckets), oldest first.
+  // DATE_TRUNC('week') in PostgreSQL returns the Monday of each ISO week;
+  // we use straight 7-day offsets here so the keys align with whatever the
+  // DB returns (which will already be normalized by the GROUP BY clause).
+  const now = new Date();
+  const weekKeys: string[] = [];
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i * 7);
+    weekKeys.push(d.toISOString().slice(0, 10));
+  }
+
+  const clusterGrowthRate: number[] = [];
+  const citationVelocity:  number[] = [];
+  const engagementTrend:   number[] = [];
+  const harvestVolume:     number[] = [];
+
+  for (const key of weekKeys) {
+    const row = rowMap.get(key);
+    clusterGrowthRate.push(row ? parseInt(row.count, 10)        : 0);
+    citationVelocity.push(row  ? parseFloat(row.avg_citations)  : 0);
+    engagementTrend.push(row   ? parseFloat(row.avg_engagement) : 0);
+    harvestVolume.push(row     ? parseInt(row.count, 10)        : 0);
+  }
+
+  // Skip areas with fewer than 4 non-zero weeks
+  const nonZeroWeeks = clusterGrowthRate.filter(v => v > 0).length;
+  if (nonZeroWeeks < 4) return null;
+
+  return { clusterGrowthRate, citationVelocity, engagementTrend, harvestVolume };
+}
