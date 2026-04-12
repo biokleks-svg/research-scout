@@ -1,3 +1,4 @@
+import { AdminActions } from '@/components/admin/AdminActions';
 import { redirect } from 'next/navigation';
 import { lucia } from '@/lib/auth';
 import { cookies } from 'next/headers';
@@ -41,6 +42,8 @@ export default async function AdminPage() {
   return (
     <main className="max-w-4xl mx-auto py-10 px-4 space-y-8">
       <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+
+      <AdminActions />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[

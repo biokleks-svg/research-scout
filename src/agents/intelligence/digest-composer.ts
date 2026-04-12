@@ -1,8 +1,9 @@
 import { db } from '@/server/db';
-import { users } from '@/server/db/schema';
-import { isNotNull } from 'drizzle-orm';
+import { users, areaForecasts } from '@/server/db/schema';
+import { isNotNull, sql } from 'drizzle-orm';
 import { buildRecommendations } from './rec-engine';
 import type { TaxonomyTags, SummarySchema } from '@/types/content';
+import type { AreaForecast, AreaForecastPrediction } from '@/types/trends';
 import { pino } from 'pino';
 
 const logger = pino({ name: 'digest-composer' });
@@ -32,6 +33,19 @@ export function formatDigestItem(item: DigestItem): string {
   return lines.join('\n');
 }
 
+export function formatRisingTopics(forecasts: AreaForecast[]): string {
+  if (forecasts.length === 0) return '';
+  const lines = ['## Rising Topics (6-month forecast)\n'];
+  for (const f of forecasts.slice(0, 3)) {
+    const p = f.prediction as AreaForecastPrediction;
+    const sign = p.growthPercent >= 0 ? '+' : '';
+    lines.push(`**${f.taxonomyArea}** — ${sign}${p.growthPercent.toFixed(1)}% predicted growth (${p.confidence} confidence)`);
+    lines.push(f.narrative);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
 export async function composeDigest(userId: string, limit = 10): Promise<string> {
   const recs = await buildRecommendations(userId, limit);
   const items: DigestItem[] = recs.map(r => ({
@@ -45,8 +59,26 @@ export async function composeDigest(userId: string, limit = 10): Promise<string>
 
   if (items.length === 0) return 'No new content to digest. Check back tomorrow.';
 
+  // Fetch latest area forecasts (top 3 by growthPercent)
+  const latestDateResult = await db
+    .select({ maxDate: sql<Date>`MAX(forecast_date)` })
+    .from(areaForecasts);
+  const latestDate = latestDateResult[0]?.maxDate;
+  const forecastRows = latestDate
+    ? await db
+        .select()
+        .from(areaForecasts)
+        .where(sql`forecast_date = ${latestDate}`)
+        .orderBy(sql`(prediction->>'growthPercent')::float DESC`)
+    : [];
+
   const grouped = groupByTopic(items);
-  const sections: string[] = [`# Your AI Research Digest\n*${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}*\n`];
+  const sections: string[] = [
+    `# Your AI Research Digest\n*${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}*\n`,
+  ];
+
+  const risingSection = formatRisingTopics(forecastRows as AreaForecast[]);
+  if (risingSection) sections.push(risingSection);
 
   for (const [topic, topicItems] of grouped) {
     sections.push(`## ${topic}\n`);
