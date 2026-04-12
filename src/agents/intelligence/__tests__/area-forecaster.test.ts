@@ -32,6 +32,7 @@ function makeWeekRows(weekOffsets: number[], counts: number[]) {
       count:           String(counts[i]),
       avg_citations:   String(counts[i] * 2),
       avg_engagement:  String(counts[i] * 0.5),
+      harvest_volume:  String(counts[i] * 3),
     };
   });
 }

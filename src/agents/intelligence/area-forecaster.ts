@@ -39,16 +39,30 @@ function getMondayOfWeek(date: Date): Date {
 export async function aggregateSignals(area: string): Promise<AreaForecastSignals | null> {
   const result = await db.execute(sql`
     SELECT
-      DATE_TRUNC('week', published_at)   AS week,
-      COUNT(*)::int                       AS count,
-      AVG(citation_count)::float          AS avg_citations,
-      AVG(engagement_score)::float        AS avg_engagement
-    FROM content_items
-    WHERE
-      published_at > NOW() - INTERVAL '56 days'
-      AND taxonomy->>'primaryArea' = ${area}
-    GROUP BY week
-    ORDER BY week ASC
+      week,
+      count,
+      avg_citations,
+      avg_engagement,
+      (
+        SELECT COUNT(*)::int
+        FROM content_items ci2
+        WHERE
+          DATE_TRUNC('week', ci2.published_at) = week
+          AND ci2.published_at > NOW() - INTERVAL '56 days'
+      ) AS harvest_volume
+    FROM (
+      SELECT
+        DATE_TRUNC('week', published_at)   AS week,
+        COUNT(*)::int                       AS count,
+        AVG(citation_count)::float          AS avg_citations,
+        AVG(engagement_score)::float        AS avg_engagement
+      FROM content_items
+      WHERE
+        published_at > NOW() - INTERVAL '56 days'
+        AND taxonomy->>'primaryArea' = ${area}
+      GROUP BY week
+      ORDER BY week ASC
+    ) sub
   `);
 
   type WeekRow = {
@@ -56,6 +70,7 @@ export async function aggregateSignals(area: string): Promise<AreaForecastSignal
     count:          string;
     avg_citations:  string;
     avg_engagement: string;
+    harvest_volume: string;
   };
   const rows = (result as unknown as { rows: WeekRow[] }).rows;
 
@@ -88,7 +103,7 @@ export async function aggregateSignals(area: string): Promise<AreaForecastSignal
     clusterGrowthRate.push(row ? parseInt(row.count, 10)        : 0);
     citationVelocity.push(row  ? parseFloat(row.avg_citations)  : 0);
     engagementTrend.push(row   ? parseFloat(row.avg_engagement) : 0);
-    harvestVolume.push(row     ? parseInt(row.count, 10)        : 0);
+    harvestVolume.push(row     ? parseInt(row.harvest_volume, 10) : 0);
   }
 
   // Skip areas with fewer than 4 non-zero weeks
