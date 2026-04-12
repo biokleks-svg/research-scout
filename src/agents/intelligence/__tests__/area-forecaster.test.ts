@@ -11,13 +11,24 @@ vi.mock('pino', () => ({ pino: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), erro
 import { db } from '@/server/db';
 import { aggregateSignals, getDistinctAreas } from '../area-forecaster';
 
+// Mirror of the implementation's getMondayOfWeek so test data aligns with real output
+function getMondayOfWeek(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
 // Helper: build a row array simulating week-bucket query results
 function makeWeekRows(weekOffsets: number[], counts: number[]) {
+  const thisMonday = getMondayOfWeek(new Date());
   return weekOffsets.map((offset, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - offset * 7);
+    const monday = new Date(thisMonday);
+    monday.setUTCDate(monday.getUTCDate() - offset * 7);
     return {
-      week:            d.toISOString(),
+      week:            monday.toISOString(),
       count:           String(counts[i]),
       avg_citations:   String(counts[i] * 2),
       avg_engagement:  String(counts[i] * 0.5),

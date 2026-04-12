@@ -1,10 +1,6 @@
 import { db } from '@/server/db';
-import { areaForecasts } from '@/server/db/schema';
 import { sql } from 'drizzle-orm';
-import { getProModel } from '@/lib/gemini';
-import pRetry from 'p-retry';
-import { z } from 'zod';
-import type { AreaForecastSignals, AreaForecastPrediction } from '@/types/trends';
+import type { AreaForecastSignals } from '@/types/trends';
 import { pino } from 'pino';
 
 const logger = pino({ name: 'area-forecaster' });
@@ -23,6 +19,16 @@ export async function getDistinctAreas(): Promise<string[]> {
   `);
   return (result as unknown as { rows: Array<{ primary_area: string }> })
     .rows.map(r => r.primary_area);
+}
+
+/** Returns the Monday of the ISO week containing the given date (UTC). */
+function getMondayOfWeek(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const diff = day === 0 ? -6 : 1 - day; // adjust to Monday
+  d.setUTCDate(d.getUTCDate() + diff);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
 }
 
 /**
@@ -60,16 +66,16 @@ export async function aggregateSignals(area: string): Promise<AreaForecastSignal
     rowMap.set(key, row);
   }
 
-  // Generate the 8 expected week-start dates (7-day buckets), oldest first.
+  // Generate the 8 expected week-start dates (Monday-aligned, oldest first).
   // DATE_TRUNC('week') in PostgreSQL returns the Monday of each ISO week;
-  // we use straight 7-day offsets here so the keys align with whatever the
-  // DB returns (which will already be normalized by the GROUP BY clause).
+  // we snap to the same Monday so JS keys match DB keys on every day of the week.
   const now = new Date();
+  const thisMonday = getMondayOfWeek(now);
   const weekKeys: string[] = [];
   for (let i = 7; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i * 7);
-    weekKeys.push(d.toISOString().slice(0, 10));
+    const monday = new Date(thisMonday);
+    monday.setUTCDate(monday.getUTCDate() - i * 7);
+    weekKeys.push(monday.toISOString().slice(0, 10));
   }
 
   const clusterGrowthRate: number[] = [];
